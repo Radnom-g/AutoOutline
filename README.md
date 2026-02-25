@@ -1,11 +1,15 @@
 # AutoOutline
 Aseprite Auto-Outline script that maintains an outline in a new Layer
 
-TO USE: Save as 'AutoOutline.lua' in your Aseprite Scripts folder 
-(Tip: From Aseprite, open 'File -> Scripts -> Open Scripts Folder')
+**TO USE:** Save as 'AutoOutline.lua' in your Aseprite Scripts folder 
+
+_(Tip: From Aseprite, open 'File -> Scripts -> Open Scripts Folder')_
+
 Then hit 'File -> Scripts -> Rescan Scripts Folder'
+
 Then run by running 'File -> Scripts -> AutoOutline'
-(Tip: assign it a shortcut! I use Alt+O)
+
+_(Tip: assign it a shortcut! I use Alt+O)_
 
 ![my_script](https://github.com/user-attachments/assets/a75d978d-7a8c-4f9d-a397-acacedfde1ea)
 
