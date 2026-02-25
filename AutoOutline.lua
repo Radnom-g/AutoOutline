@@ -2,6 +2,9 @@
 -- Copies each layer into a new Outline layer, draws an outline around it, then deletes the original pixels
 -- Maintains the outline in a separate layer 
 
+-- v1.01
+-- See https://github.com/Radnom-g/AutoOutline for updates 
+
 
 -- TO USE: Save as 'AutoOutline.lua' in your Aseprite Scripts folder 
 -- (Tip: From Aseprite, open 'File -> Scripts -> Open Scripts Folder')
@@ -18,6 +21,7 @@
 ---- Move the outline layer to the bottom (if set to 'outside') and make it locked
 ---- Able to ignore manually-placed outline-colored pixels (to manually place outline pixels to define sharp edges for example)
 ---- allows AutoOutline to run on a group, creating outlines for every visible layer within that Group 
+---- v1.01 bugfix: clear 'app.range' so that it doesn't break when selecting multiple cels/layers 
 
 
 local spr = app.sprite
@@ -68,14 +72,14 @@ end
 -- The main Outliner.
 function MakeOutlines(spr)
     local self = {}
-	
-	self.spr = spr
-	self.change_listener = nil
-	self.layervisibility_listener = nil
     
-	-- Finds the layer that the 'AutoOutline' layer should belong in
-	-- or just the sprite if it is in the root 
-	self.find_outline_layer_group = function(within_layer)
+    self.spr = spr
+    self.change_listener = nil
+    self.layervisibility_listener = nil
+    
+    -- Finds the layer that the 'AutoOutline' layer should belong in
+    -- or just the sprite if it is in the root 
+    self.find_outline_layer_group = function(within_layer)
     
         -- 'AutoOutline' layer should be at root level, so return the sprite 
         if outline_group_name == nil then 
@@ -86,7 +90,7 @@ function MakeOutlines(spr)
         
         if within_layer.layers then -- it may not be a group and thus have sub layers 
             for i,layer in ipairs(within_layer.layers) do
-				-- This is the right group for the outline 
+                -- This is the right group for the outline 
                 if layer.name == outline_group_name then
                     return layer
                 end
@@ -99,7 +103,7 @@ function MakeOutlines(spr)
             end
         end
         
-		-- Check if we've found the target group, then return it 
+        -- Check if we've found the target group, then return it 
         if within_layer ~= nil then 
             if within_layer.name == outline_group_name then
                 return within_layer
@@ -110,7 +114,7 @@ function MakeOutlines(spr)
     end 
         
     -- Finds the 'AutoOutline' layer by checking within the group layer it sits in 
-	-- (or directly under the sprite if at root level) 
+    -- (or directly under the sprite if at root level) 
     self.find_layer = function()
         local group_layer = self.find_outline_layer_group(spr)
         
@@ -132,7 +136,11 @@ function MakeOutlines(spr)
     -- Creates (or finds) the layer named 'AutoOutline' in the correct Group layer
     self.create_layer = function()
         -- Ensure we can return to the user's current layer. 
-        local prevActiveLayer = app.activeLayer
+        local prev_layer = app.layer
+		local prev_range = app.range
+		
+		-- Clear the range so that we aren't drawing outlines to multiple layers!
+		app.range:clear()
         
         -- does the outline layer exist?
         local outline_layer = self.find_layer()
@@ -200,14 +208,15 @@ function MakeOutlines(spr)
         end
         
         -- Select the layer you were drawing on again 
-        app.activeLayer = prevActiveLayer
+        app.layer = prev_layer
+		app.range = prev_range
         app.refresh()
             
         return outline_layer
     end    
     
-	-- Copy the sprites from the layers within the outline's group (recursively),
-	-- but ignore any other AutoOutline layers and invisible layers 
+    -- Copy the sprites from the layers within the outline's group (recursively),
+    -- but ignore any other AutoOutline layers and invisible layers 
     self.copy_layers = function(sprite_or_layer, outline_layer, cel)
         local curr_frame = app.frame.frameNumber
         -- if it's not the base sprite then copy it (or its sub layers if a group)
@@ -217,7 +226,7 @@ function MakeOutlines(spr)
                 for i,layer in ipairs(sprite_or_layer.layers) do
                     -- check group visibility before copying layers
                     if layer.isVisible then 
-						-- Recursively copy! 
+                        -- Recursively copy! 
                         self.copy_layers(layer, outline_layer, cel)
                     end
                 end
@@ -263,7 +272,7 @@ function MakeOutlines(spr)
         end 
         
         -- Don't update if we're on a different Sprite than the one we opened the Dialog for. 
-        if spr_id ~= app.activeSprite.id then 
+        if spr_id ~= app.sprite.id then 
             print ("can't update outline, wrong sprite selected")
         end 
             
@@ -277,7 +286,12 @@ function MakeOutlines(spr)
         -- Save off previously selected layer so that we can return to it 
         local prev_layer = app.layer
         local curr_frame = app.frame.frameNumber
-        
+		
+		-- the 'range' of selected cels/frames/etc
+		local prev_range = app.range
+		-- Clear the range so that we aren't drawing outlines to multiple layers!
+		app.range:clear()
+		
         -- Find the outline layer 
         local outline_layer = self.find_layer()
         
@@ -295,8 +309,8 @@ function MakeOutlines(spr)
         
         -- Unlock the layer 
         outline_layer.isEditable = true 
-		
-		-- Create a new working cel for the outline layer 
+        
+        -- Create a new working cel for the outline layer 
         local cel = spr:newCel(outline_layer, curr_frame)
         
         -- Get the layers in the outline layer's group
@@ -309,8 +323,12 @@ function MakeOutlines(spr)
         local outline_col = outline_color
         local outline_col_int = outline_col.rgbaPixel
         
+        
+        app.layer = outline_layer
+        assert(app.layer.name == "AutoOutline", "error: selecting wrong layer for drawing")
+                            
         -- delete colors that are outline if we are set to do this 
-		-- (this lets us manually draw outlines in areas where the auto outline doesn't make an angle sharp enough etc without affecting the auto outline output)
+        -- (this lets us manually draw outlines in areas where the auto outline doesn't make an angle sharp enough etc without affecting the auto outline output)
         if outline_ignore_existing_col then 
             for y = 0, cel.image.height - 1 do
                 for x = 0, cel.image.width - 1 do
@@ -321,6 +339,11 @@ function MakeOutlines(spr)
                 end
             end
         end 
+        
+            
+        app.layer = outline_layer
+                            
+        assert(app.layer.name == "AutoOutline", "error: selecting wrong layer for drawing outline")
         
         -- Now, draw the outline 
         app.command.Outline{ui=false,color=outline_col, matrix=outline_matrix, place=outline_place, bgColor=Color{r=255,g=0,b=255,a=255}}
@@ -338,16 +361,19 @@ function MakeOutlines(spr)
             end
         end
         
-		-- replace the image of the outline layer
+        -- replace the image of the outline layer
         outline_cel.image = outline_img
   
-		-- now put us back on the layer the user was editing
+        -- now put us back on the layer the user was editing
         app.layer = prev_layer
+		
+		app.range = prev_range
+		
         outline_layer.isEditable = false
     
         app.refresh()
-		
-		-- this allows the function to be called again
+        
+        -- this allows the function to be called again
         outline_is_drawing = false 
         return nil
     end 
@@ -361,7 +387,7 @@ function MakeOutlines(spr)
         end 
         
         -- has to match the sprite we care about 
-        if spr_id ~= app.activeSprite.id then 
+        if spr_id ~= app.sprite.id then 
             return nil 
         end 
     
@@ -374,17 +400,17 @@ function MakeOutlines(spr)
     end
     
     self.start = function()
-		-- Create the outline layer in the selected group
+        -- Create the outline layer in the selected group
         self.outline_layer = self.create_layer()
-		
-		-- Register for events to listen to when things change to update the outline 
+        
+        -- Register for events to listen to when things change to update the outline 
         self.change_listener = spr.events:on('change', self.on_change)
         self.layervisibility_listener = spr.events:on('layervisibility', self.on_change)
         return true
     end
 
     self.stop = function()
-		-- Unregister from events 
+        -- Unregister from events 
         if self.change_listener then 
             spr.events:off(self.change_listener)
             self.change_listener = nil
@@ -432,7 +458,7 @@ end
 function on_site_change()
 
     -- If the user closes all sprites then shut down the AutoOutline tool too 
-    if app.activeSprite == nil then 
+    if app.sprite == nil then 
         outliner.stop()
         AutoOutline_params.spr_id = -1
         if site_change_listener ~= nil then 
@@ -442,15 +468,15 @@ function on_site_change()
             dlg:close()
         end
     -- Double-check that we are still on the same Sprite that we opened this tool for 
-    elseif app.activeSprite.id == spr_id then
-	
-		if not outline_active then 
-			update_group_names()
-		end
-		
+    elseif app.sprite.id == spr_id then
+    
+        if not outline_active then 
+            update_group_names()
+        end
+        
         if dlg_locked then 
             -- set spr again as we may have lost it 
-            spr = app.activeSprite
+            spr = app.sprite
             
             unlock_dlg()
         end 
@@ -598,9 +624,9 @@ end
 -- Populate the list of group names in the group drop-down picker 
 function update_group_names()
 
-	local old_group_name = outline_group_name
-	local has_old_group = false 
-	
+    local old_group_name = outline_group_name
+    local has_old_group = false 
+    
     local options = {
         "[root]"
         }
@@ -609,19 +635,19 @@ function update_group_names()
     if new_layers ~= nil then 
         for j,layer_name in ipairs(new_layers) do 
             options[#options + 1] = layer_name
-			
-			if layer_name == old_group_name then 
-				has_old_group = true 
-			end
+            
+            if layer_name == old_group_name then 
+                has_old_group = true 
+            end
         end
     end 
         
     dlg:modify{ id="dialog_group_combobox", options=options }
-	
-	-- make sure we put the old group back 
-	if has_old_group then 
-		outline_group_name = old_group_name
-	end 
+    
+    -- make sure we put the old group back 
+    if has_old_group then 
+        outline_group_name = old_group_name
+    end 
 end 
 
 -- Called when a group is selected 
@@ -648,7 +674,7 @@ dlg:combobox {
 -- Turn the outliner on/off 
 function toggle_active()
     if outline_active == true then 
-		-- Deactivate the outliner 
+        -- Deactivate the outliner 
         outline_active = false 
         outliner.stop()
         
@@ -656,7 +682,7 @@ function toggle_active()
         dlg:modify{ id="dialog_outline_col", onchange=on_color_change }
         
     else 
-		-- Activate the outliner 
+        -- Activate the outliner 
         outline_active = true
         outliner.start()
         outliner.draw_outline()
