@@ -22,4 +22,5 @@ and then updated by Sean Flannigan (seanflannigan.com) to add:
 - Move the outline layer to the bottom (if set to 'outside') and make it locked
 - Able to ignore manually-placed outline-colored pixels (to manually place outline pixels to define sharp edges for example)
 - allows AutoOutline to run on a group, creating outlines for every visible layer within that Group
-- v1.01 bugfix: clear 'app.range' so that it doesn't break when selecting multiple cels/layers 
+- v1.01 bugfix: clear 'app.range' so that it doesn't break when selecting multiple cels/layers
+- v1.02 feature: added line width support in a drop-down selection
