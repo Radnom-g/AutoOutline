@@ -35,6 +35,8 @@ local outline_try_auto_detected_col = false -- when first opened, try and determ
 local outline_found_auto_detected_col = false 
 local outline_group_name = nil
 
+local outline_thickness = 1
+
 local dlg_locked = false -- Lock the dialog buttons (except for close) when another Sprite is selected to make it more clear 
 
 local dlg = nil 
@@ -137,10 +139,10 @@ function MakeOutlines(spr)
     self.create_layer = function()
         -- Ensure we can return to the user's current layer. 
         local prev_layer = app.layer
-		local prev_range = app.range
-		
-		-- Clear the range so that we aren't drawing outlines to multiple layers!
-		app.range:clear()
+        local prev_range = app.range
+        
+        -- Clear the range so that we aren't drawing outlines to multiple layers!
+        app.range:clear()
         
         -- does the outline layer exist?
         local outline_layer = self.find_layer()
@@ -209,7 +211,7 @@ function MakeOutlines(spr)
         
         -- Select the layer you were drawing on again 
         app.layer = prev_layer
-		app.range = prev_range
+        app.range = prev_range
         app.refresh()
             
         return outline_layer
@@ -286,12 +288,12 @@ function MakeOutlines(spr)
         -- Save off previously selected layer so that we can return to it 
         local prev_layer = app.layer
         local curr_frame = app.frame.frameNumber
-		
-		-- the 'range' of selected cels/frames/etc
-		local prev_range = app.range
-		-- Clear the range so that we aren't drawing outlines to multiple layers!
-		app.range:clear()
-		
+        
+        -- the 'range' of selected cels/frames/etc
+        local prev_range = app.range
+        -- Clear the range so that we aren't drawing outlines to multiple layers!
+        app.range:clear()
+        
         -- Find the outline layer 
         local outline_layer = self.find_layer()
         
@@ -345,8 +347,20 @@ function MakeOutlines(spr)
                             
         assert(app.layer.name == "AutoOutline", "error: selecting wrong layer for drawing outline")
         
-        -- Now, draw the outline 
-        app.command.Outline{ui=false,color=outline_col, matrix=outline_matrix, place=outline_place, bgColor=Color{r=255,g=0,b=255,a=255}}
+        local repeat_outline = outline_thickness
+        
+        while repeat_outline > 0 do 
+            -- Now, draw the outline 
+            local matrix = outline_matrix
+            
+            -- thicker outlines look better if the initial ones are square 
+            if repeat_outline < outline_thickness then 
+                matrix = "square"
+            end 
+            
+            app.command.Outline{ui=false,color=outline_col, matrix=matrix, place=outline_place, bgColor=Color{r=255,g=0,b=255,a=255}}
+            repeat_outline = repeat_outline - 1
+        end
         
         local outline_cel = outline_layer:cel(curr_frame)
         local outline_img = outline_cel.image
@@ -366,9 +380,9 @@ function MakeOutlines(spr)
   
         -- now put us back on the layer the user was editing
         app.layer = prev_layer
-		
-		app.range = prev_range
-		
+        
+        app.range = prev_range
+        
         outline_layer.isEditable = false
     
         app.refresh()
@@ -670,6 +684,27 @@ dlg:combobox {
     onchange=on_group_change
 }
 
+-- Called when the line thickness is changed
+on_thickness_change = function()
+    outline_thickness = tonumber( dlg.data.dialog_thickness_combobox )
+    
+    if outline_active then 
+        -- force the outline to update 
+        outliner.draw_outline()
+    end 
+end
+
+
+-- The line thickness drop-down selector UI
+dlg:combobox {
+    id = "dialog_thickness_combobox",
+    label = "Thickness: ",
+    option = "[root]",
+    options = {
+        "1", "2", "3", "4", "5"
+        },
+    onchange=on_thickness_change
+}
 
 -- Turn the outliner on/off 
 function toggle_active()
