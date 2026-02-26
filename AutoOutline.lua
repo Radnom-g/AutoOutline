@@ -2,7 +2,7 @@
 -- Copies each layer into a new Outline layer, draws an outline around it, then deletes the original pixels
 -- Maintains the outline in a separate layer 
 
--- v1.01
+-- v1.02
 -- See https://github.com/Radnom-g/AutoOutline for updates 
 
 
@@ -22,6 +22,7 @@
 ---- Able to ignore manually-placed outline-colored pixels (to manually place outline pixels to define sharp edges for example)
 ---- allows AutoOutline to run on a group, creating outlines for every visible layer within that Group 
 ---- v1.01 bugfix: clear 'app.range' so that it doesn't break when selecting multiple cels/layers 
+---- v1.02 feature: Added line width support in a dropdown 
 
 
 local spr = app.sprite
