@@ -24,3 +24,4 @@ and then updated by Sean Flannigan (seanflannigan.com) to add:
 - allows AutoOutline to run on a group, creating outlines for every visible layer within that Group
 - v1.01 bugfix: clear 'app.range' so that it doesn't break when selecting multiple cels/layers
 - v1.02 feature: added line width support in a drop-down selection
+- v1.03 feature: support for Indexed sprite mode 
