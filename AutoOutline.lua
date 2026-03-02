@@ -2,7 +2,7 @@
 -- Copies each layer into a new Outline layer, draws an outline around it, then deletes the original pixels
 -- Maintains the outline in a separate layer 
 
--- v1.02
+-- v1.03
 -- See https://github.com/Radnom-g/AutoOutline for updates 
 
 
@@ -23,6 +23,7 @@
 ---- allows AutoOutline to run on a group, creating outlines for every visible layer within that Group 
 ---- v1.01 bugfix: clear 'app.range' so that it doesn't break when selecting multiple cels/layers 
 ---- v1.02 feature: Added line width support in a dropdown 
+---- v1.03 feature: Support Indexed sprite palette mode  
 
 
 local spr = app.sprite
@@ -249,7 +250,18 @@ function MakeOutlines(spr)
                                 
                                 -- Copy the source cel into the outliner layer. 
                                 if cel ~= nil then 
-                                    cel.image:drawImage(img, origin)
+                                    if spr.colorMode==ColorMode.INDEXED then
+                                        for pixel in img:pixels() do
+                                            local pc = Color(pixel())
+                                            cel.image:drawPixel(pixel.x + src_cel.position.x, pixel.y + src_cel.position.y, pc)
+                                            
+                                            --print("x " .. tostring(pixel.x) .. " y " .. tostring(pixel.y) .. " col " .. tostring(pixel()) )
+                                        end
+                                    else 
+                                        cel.image:drawImage(img, origin)
+                                    end
+                                    
+                                    
                                 end 
                             end
                         end
@@ -327,9 +339,15 @@ function MakeOutlines(spr)
         local outline_col_int = outline_col.rgbaPixel
         
         
-        app.layer = outline_layer
-        assert(app.layer.name == "AutoOutline", "error: selecting wrong layer for drawing")
-                            
+        
+        local transp_col = Color{r=0,g=0,b=0,a=0}
+        
+        if spr.colorMode==ColorMode.INDEXED then
+            local specSrc = cel.image.spec
+            transp_col = specSrc.transparentColor
+            outline_col_int = outline_col.index
+        end     
+        
         -- delete colors that are outline if we are set to do this 
         -- (this lets us manually draw outlines in areas where the auto outline doesn't make an angle sharp enough etc without affecting the auto outline output)
         if outline_ignore_existing_col then 
@@ -337,16 +355,12 @@ function MakeOutlines(spr)
                 for x = 0, cel.image.width - 1 do
                     local check_col_int = cel.image:getPixel(x, y)
                     if check_col_int == outline_col_int then
-                        cel.image:drawPixel(x, y, Color{r=0,g=0,b=0,a=0})
+                        cel.image:drawPixel(x, y, transp_col)
                     end
                 end
             end
         end 
         
-            
-        app.layer = outline_layer
-                            
-        assert(app.layer.name == "AutoOutline", "error: selecting wrong layer for drawing outline")
         
         local repeat_outline = outline_thickness
         
@@ -359,23 +373,24 @@ function MakeOutlines(spr)
                 matrix = "square"
             end 
             
-            app.command.Outline{ui=false,color=outline_col, matrix=matrix, place=outline_place, bgColor=Color{r=255,g=0,b=255,a=255}}
+            app.command.Outline{ui=false,color=outline_col, matrix=matrix, place=outline_place}
             repeat_outline = repeat_outline - 1
         end
         
         local outline_cel = outline_layer:cel(curr_frame)
         local outline_img = outline_cel.image
         
-        -- delete colours that aren't outline 
+        --delete colors that aren't outline 
         for y = 0, outline_img.height - 1 do
             for x = 0, outline_img.width - 1 do
                 local check_col_int = outline_img:getPixel(x, y)
                 if check_col_int ~= outline_col_int then
-                    outline_img:drawPixel(x, y, Color{r=0,g=0,b=0,a=0})
+                    --print("check_col_int " .. tostring(check_col_int) .. ", outline_col_int " .. tostring(outline_col_int) ) 
+                    outline_img:drawPixel(x, y, transp_col)
                 end
             end
         end
-        
+                    
         -- replace the image of the outline layer
         outline_cel.image = outline_img
   
